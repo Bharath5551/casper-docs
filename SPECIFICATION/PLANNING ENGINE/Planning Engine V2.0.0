@@ -1,0 +1,1198 @@
+CASPER: Volume 6 — Planning Engine Specification
+
+Version: 2.0.0-PLAN
+
+Classification: Restricted — Autonomous Cognitive Systems Engineering Division
+
+PART I: Planning Philosophy
+
+1.1 Goal-Oriented Cognition and Hierarchical Planning
+
+In the CASPER architecture, cognitive execution is formulated as the systematic
+minimization of variational free energy over a temporal horizon. Natural
+language user intents (e.g., "Secure a backend developer job before December")
+are highly complex, non-deterministic objectives containing vast latent
+dependencies. To resolve these intents, the system relies on Hierarchical
+Goal-Oriented Cognition. High-level goals must be systematically decomposed into
+nested lattices of objectives, projects, tasks, and primitive execution steps.
+
++---------------------------------------------------------------------------------+
+|                                 L0: USER INTENT                                 |
+|                     "Secure backend developer job by Dec"                       |
++---------------------------------------------------------------------------------+
+                                         |
+                                         v
++---------------------------------------------------------------------------------+
+|                                  L1: GOALS                                      |
+|            - Build Resume      - Apply to Roles      - Study DSA                |
++---------------------------------------------------------------------------------+
+                                         |
+                                         v
++---------------------------------------------------------------------------------+
+|                                L2: OBJECTIVES                                   |
+|                          - Complete DSA Practice                                |
++---------------------------------------------------------------------------------+
+                                         |
+                                         v
++---------------------------------------------------------------------------------+
+|                                  L3: PLANS                                      |
+|                    - Solve 50 Array & String Problems                           |
++---------------------------------------------------------------------------------+
+                                         |
+                                         v
++---------------------------------------------------------------------------------+
+|                                  L4: TASKS                                      |
+|                      - Complete Two-Sum on LeetCode                             |
++---------------------------------------------------------------------------------+
+                                         |
+                                         v
++---------------------------------------------------------------------------------+
+|                                 L5: ACTIONS                                     |
+|                     - Open Browser and Navigate to URL                          |
++---------------------------------------------------------------------------------+
+                                         |
+                                         v
++---------------------------------------------------------------------------------+
+|                                L6: TOOL CALLS                                   |
+|                - Playwright click target selector coordinates                   |
++---------------------------------------------------------------------------------+
+
+1.2 Mathematical Formulation of Active Inference Planning
+
+The Planning Engine selects a policy (plan) \pi that minimizes Expected Free
+Energy G(\pi) over a temporal horizon \tau \in [t, T]:
+
+G(\pi) = \sum_{\tau=t}^{T} G(\pi, \tau)
+
+The Expected Free Energy of a policy at a specific future step \tau is
+decomposed into epistemic (information-seeking) and pragmatic (goal-seeking)
+value:
+
+G(\pi, \tau) \approx -\underbrace{\mathbb{E}_{q(o_\tau, s_\tau \mid \pi)} \left[ \ln p(o_\tau \mid m) - \ln q(o_\tau \mid \pi) \right]}_{\text{Pragmatic Value (Goal Directed)}} - \underbrace{\mathbb{E}_{q(s_\tau \mid \pi)} \left[ \mathbb{E}_{q(o_\tau \mid s_\tau, \pi)} \left[ \ln q(s_\tau \mid o_\tau, \pi) - \ln q(s_\tau \mid \pi) \right] \right]}_{\text{Epistemic Value (Information Seeking)}}
+
+Where:
+
+  - s_\tau represents the hidden environmental state at step \tau.
+  - o_\tau represents the sensory/tool observations at step \tau.
+  - p(o_\tau \mid m) represents the prior target preference profile (the goal
+    specification) defined by the user context m.
+  - q(s_\tau \mid \pi) is the variational belief state distribution over latent
+    environmental variables under policy \pi.
+  - q(o_\tau \mid s_\tau, \pi) is the predicted likelihood of observation o_\tau
+    given state s_\tau.
+
+Through this mathematical formulation, CASPER's Planning Engine naturally
+balances exploration (e.g., searching directory structures, testing API
+endpoints) with exploitation (e.g., writing files, completing database
+transactions).
+
+1.3 Classical AI Planning vs. Modern LLM-Assisted Planning
+
+Classical planning paradigms—such as STRIPS, PDDL, and Hierarchical Task
+Networks (HTN)—rely on deterministic state representations, closed-world
+assumptions, and pre-defined operator libraries. These methods provide absolute
+correctness and validation but fail in highly unstructured environments (e.g.,
+standard web browsing or codebase exploration) due to state-space explosion and
+missing operational definitions.
+
+LLM-based planners exhibit vast domain knowledge and fluid intent understanding
+but suffer from catastrophic compounding errors, hallucination of tool
+capabilities, and lack of deterministic validation checks.
+
+CASPER resolves this trade-off using a Hybrid Neuro-Symbolic Planning
+architecture. LLMs act as probabilistic Proposal Engines that draft candidate
+state transformations, while deterministic engines (HTN compilers, CSP solvers,
+and Pearl structural causal models) validate, prune, and schedule the generated
+steps.
+
+                    [HYBRID NEURO-SYMBOLIC PLANNING]
+                                   |
+         +-------------------------+-------------------------+
+         |                                                   |
+         v                                                   v
+[Probabilistic Proposal Engine]                     [Deterministic Guard Engine]
+  - Large Language Model (LLM)                        - HTN Compilers & CSP Solvers
+  - Generates candidate tasks                         - Validates preconditions & rules
+  - Translates user intent                            - Schedules execution sequences
+
+PART II: Complete Planning Architecture
+
+========================================================================================================================
+                                               PLANNING ENGINE CONTROL PLANE
+========================================================================================================================
+                                                      |
+                                                      v
+                                           +--------------------+
+                                           |  Planning Manager  |
+                                           +--------------------+
+                                                      |
+             +---------------------+------------------+------------------+---------------------+
+             |                     |                                     |                     |
+             v                     v                                     v                     v
+     +---------------+     +---------------+                     +---------------+     +---------------+
+     | Goal Compiler |     |Task Decomposer|                     | Plan Validator|     |Planning Cache |
+     +---------------+     +---------------+                     +---------------+     +---------------+
+             |                     |                                     |                     |
+             +----------+----------+                                     +----------+----------+
+                        |                                                           |
+                        v                                                           v
+========================================================================================================================
+                                              ALGORITHMIC SOLVER REGISTER
+========================================================================================================================
+                        |                                                           |
+      +-----------------+-----------------+                       +-----------------+-----------------+
+      |                                   |                       |                                   |
+      v                                   v                       v                                   v
++------------+                      +------------+          +------------+                      +------------+
+|    HTN     |                      |    GOAP    |          |  Temporal  |                      |  Resource  |
+|  Planner   |                      |  Planner   |          |  Planner   |                      |  Planner   |
++------------+                      +------------+          +------------+                      +------------+
+      |                                   |                       |                                   |
+      +-----------------+-----------------+                       +-----------------+-----------------+
+                        |                                                           |
+                        v                                                           v
+========================================================================================================================
+                                              VERIFICATION & REPAIR LAYER
+========================================================================================================================
+                        |                                                           |
+      +-----------------+-----------------+                       +-----------------+-----------------+
+      |                                   |                       |                                   |
+      v                                   v                       v                                   v
++------------+                      +------------+          +------------+                      +------------+
+| Constraint |                      |    Risk    |          | Plan Repair|                      | Simulation |
+|  Planner   |                      |  Planner   |          |   Engine   |                      |  Planner   |
++------------+                      +------------+          +------------+                      +------------+
+      |                                   |                       |                                   |
+      +-----------------+-----------------+                       +-----------------+-----------------+
+                        |                                                           |
+                        +-----------------------------+-----------------------------+
+                                                      |
+                                                      v
+========================================================================================================================
+                                              DISPATCH & METRIC LAYER
+========================================================================================================================
+                                                      |
+                                     +----------------+----------------+
+                                     |                                 |
+                                     v                                 v
+                              +------------+                    +------------+
+                              | Scheduling |                    | Planning   |
+                              | & Dispatch |                    | Telemetry  |
+                              +------------+                    +------------+
+
+2.1 Subsystem Blueprint Specifications
+
+1. Planning Manager
+
+  - Purpose: Acts as the central administrative hub of the Planning Engine,
+    managing process lifecycles, resource allocations, and cancellation signals.
+  - Core Interfaces: initiate_planning_session(), terminate_session(),
+    get_session_status().
+  - Inputs: Raw User Intent, Budget Profile, Session Flags.
+  - Outputs: Session UUID, Stream of State Transitions.
+  - Failure Modes: Thread pool starvation, deadlock during resource allocation.
+    Managed by watchdog monitoring timers and automatic task-set rollbacks.
+
+2. Goal Compiler
+
+  - Purpose: Parses unstructured user statements and translates them into
+    normalized, formally validated Goal Objects.
+  - Core Interfaces: compile_intent(), validate_goal(), split_goal().
+  - Inputs: Raw Intent String, User Context Schema.
+  - Outputs: Validated Goal Object, Goal Dependency List.
+  - Failure Modes: Intent parsing ambiguity, invalid goal specifications.
+    Triggers clarification dialog prompts or falls back to standard templates.
+
+3. Task Decomposer
+
+  - Purpose: Runs recursive decomposition loops, translating compound tasks into
+    sequential chains of primitive operations.
+  - Core Interfaces: decompose_task(), apply_expansion_rule().
+  - Inputs: Compound Task Node, Active Domain Schema.
+  - Outputs: Task Tree (Decomposition Path), List of Primitive Tasks.
+  - Failure Modes: Infinite recursion loops, expansion schema mismatches.
+    Prevented by strict depth caps and validation checks.
+
+4. HTN Planner
+
+  - Purpose: Resolves hierarchical task trees, validating preconditions and
+    scheduling execution sequences.
+  - Core Interfaces: compile_htn(), check_preconditions().
+  - Inputs: Decomposed Task Tree, Current Belief State.
+  - Outputs: Validated HTN Plan Lattice.
+  - Failure Modes: Precondition check failures, state synchronization errors.
+    Triggers local plan repairs or launches abductive hypothesis searches.
+
+5. GOAP Planner
+
+  - Purpose: Resolves planning sequences by running state-space searches
+    backwards from target goals.
+  - Core Interfaces: solve_goap(), calculate_heuristic().
+  - Inputs: Target Goal State Vector, Available Tool Schemas.
+  - Outputs: Sequential Action Path.
+  - Failure Modes: State-space explosion, infinite search loops. Mitigated by
+    weighted heuristics and strict search depth limits.
+
+6. Partial Order Planner (POP)
+
+  - Purpose: Compiles non-sequential plans, resolving dependencies to support
+    concurrent task execution.
+  - Core Interfaces: compile_pop(), resolve_clobbering_links().
+  - Inputs: Goal Specification, Operator Library.
+  - Outputs: Partially-Ordered Plan Lattice (Acyclic Graph).
+  - Failure Modes: Thread deadlocks, conflicting causal links. Resolved using
+    Tarjan's Strongly Connected Components algorithm to find and prune loop
+    nodes.
+
+7. Temporal Planner
+
+  - Purpose: Aligns task schedules with temporal constraints and user calendars.
+  - Core Interfaces: solve_temporal(), check_interval_relations().
+  - Inputs: Action List, Deadlines Profile, Calendar Entries.
+  - Outputs: Scheduled Task Timeline.
+  - Failure Modes: Deadline scheduling conflicts, calendar sync errors.
+    Mitigated by dynamic priority boosting and conflict warnings.
+
+8. Resource Planner
+
+  - Purpose: Balances resource allocations (compute, tokens, budgets) across
+    running tasks.
+  - Core Interfaces: allocate_resources(), verify_budgets().
+  - Inputs: Task Plan, Dynamic Resource Limits.
+  - Outputs: Resource Allocation Map.
+  - Failure Modes: Budget exhaustion, resource conflicts. Safely pauses
+    low-priority tasks and reclaims resources.
+
+9. Risk Planner
+
+  - Purpose: Runs risk assessments and checks safety rules before task
+    execution.
+  - Core Interfaces: assess_risk(), verify_safety_policies().
+  - Inputs: Candidate Plan, World Model Causal Diagrams.
+  - Outputs: Risk Rating Score, Policy Verification Verdict.
+  - Failure Modes: Policy validation timeouts, risk score divergence.
+    Automatically blocks high-risk actions and requests manual approval.
+
+10. Policy Planner
+
+  - Purpose: Checks proposed steps against active compliance rules and security
+    boundaries.
+  - Core Interfaces: verify_compliance(), apply_policy_rules().
+  - Inputs: Action Step Payload, Security Profile.
+  - Outputs: Policy Verdict (Allow/Deny).
+  - Failure Modes: Rule conflicts, validation timeouts. Defaults to strict
+    isolation, blocking tool access until resolved.
+
+11. Constraint Planner
+
+  - Purpose: Solves Constraint Satisfaction Problems, ensuring plans align with
+    hard boundaries.
+  - Core Interfaces: solve_constraints(), validate_bounds().
+  - Inputs: Task Plan, Constraint Specifications.
+  - Outputs: Feasible State Configuration.
+  - Failure Modes: Solver timeouts, contradictory constraints. Mitigated by
+    backtracking and relaxed soft constraint bounds.
+
+12. Dependency Graph Builder
+
+  - Purpose: Compiles execution steps into Directed Acyclic Graphs, identifying
+    dependencies and parallelization opportunities.
+  - Core Interfaces: build_dag(), topological_sort().
+  - Inputs: Action List, Temporal Relations.
+  - Outputs: Directed Acyclic Graph (DAG) Plan Schema.
+  - Failure Modes: Dependency cycles, node isolation. Runs cycle-detection loops
+    and prunes redundant dependencies.
+
+13. Execution Planner
+
+  - Purpose: Translates completed plan lattices into raw execution instructions
+    for worker sandboxes.
+  - Core Interfaces: compile_execution_plan(), bind_worker_slot().
+  - Inputs: Validated Plan Lattice, Available Concurrency Slots.
+  - Outputs: Executable Instruction Stream.
+  - Failure Modes: Port allocation conflicts, worker spawning timeouts.
+    Automatically restarts sandboxes and reallocates execution slots.
+
+14. Plan Validator
+
+  - Purpose: Runs static assertions to verify plan correctness before
+    dispatching tasks.
+  - Core Interfaces: validate_plan(), check_static_assertions().
+  - Inputs: Compiled Execution Plan, Validation Rules.
+  - Outputs: Validation Report (Pass/Fail).
+  - Failure Modes: Rule parsing exceptions, verification timeouts. Blocks
+    execution and triggers planning repair loops.
+
+15. Plan Repair Engine
+
+  - Purpose: Patches and updates running plans when tasks encounter errors,
+    avoiding complete re-planning loops.
+  - Core Interfaces: repair_plan(), patch_subtree().
+  - Inputs: Failed Task Node, Current Environmental State.
+  - Outputs: Patched Task Lattice.
+  - Failure Modes: Loop repairs, failed repair updates. Falls back to safe
+    default state and requests user guidance.
+
+16. Plan Optimizer
+
+  - Purpose: Identifies planning optimizations, removing redundant steps and
+    grouping tasks for parallel execution.
+  - Core Interfaces: optimize_plan(), group_parallel_nodes().
+  - Inputs: Task Lattice, Optimization Targets.
+  - Outputs: Optimized Plan Lattice.
+  - Failure Modes: Invalid step removals, dependency breakages. Enforces
+    validation assertions post-optimization.
+
+17. Simulation Planner
+
+  - Purpose: Runs counterfactual simulations to predict outcomes and assess
+    risks before execution.
+  - Core Interfaces: simulate_plan(), predict_outcome().
+  - Inputs: Candidate Plan, Sandbox Environment variables.
+  - Outputs: Predicted State Outcome, Confidence Score.
+  - Failure Modes: Simulation divergence, execution timeouts. Shuts down
+    sandboxes, restores baseline variables, and falls back to conservative
+    plans.
+
+18. Planning Cache
+
+  - Purpose: Stores and retrieves historical plans and templates to speed up
+    recurring tasks.
+  - Core Interfaces: query_cache(), store_plan_template().
+  - Inputs: Context Vector, Goal Specification.
+  - Outputs: Cached Plan Template.
+  - Failure Modes: Cache corruption, stale plan retrievals. Clears temporary
+    caches and runs SQLite integrity sweeps.
+
+19. Planning Scheduler
+
+  - Purpose: Coordinates concurrent planning operations, allocating processing
+    priorities across running threads.
+  - Core Interfaces: schedule_planning_job(), adjust_job_priority().
+  - Inputs: Planning Job Payload, Scheduling Metrics.
+  - Outputs: Scheduled Job Stream.
+  - Failure Modes: Thread deadlocks, starvation of low-priority tasks. Managed
+    by aging formulas and dynamic priority boosting.
+
+20. Planning Dispatcher
+
+  - Purpose: Binds approved plans to active sandboxed execution workers.
+  - Core Interfaces: dispatch_tasks(), monitor_active_workers().
+  - Inputs: Executable Plan Schema, Worker Status Metrics.
+  - Outputs: Task Assignment Streams, Heartbeat Status.
+  - Failure Modes: Worker connection drop, worker timeout. Triggers dynamic
+    retries and rolls back failed operations.
+
+21. Planning Telemetry
+
+  - Purpose: Generates OpenTelemetry-compliant logs, spans, and metrics for all
+    planning operations.
+  - Core Interfaces: record_span(), export_metrics().
+  - Inputs: Operation Trace logs, performance metrics.
+  - Outputs: Exported OpenTelemetry logs.
+  - Failure Modes: Telemetry memory leaks, export pipeline blocks. Prevented by
+    automatic log rotation and ring-buffer logs.
+
+PART III: Planning Hierarchy
+
+L0: Intent (Natural Language Expression of Target Desire)
+   |
+   | [Compiled by Goal Compiler]
+   v
+L1: Goals (Formal State Projections, Declarative Assertions)
+   |
+   | [Decomposed by Task Decomposer via HTN/GOAP]
+   v
+L2: Objectives (Milestones / Concrete Quantifiable Deliverables)
+   |
+   | [Dependency Resolved via DAG Builder]
+   v
+L3: Plans (Sequenced DAGs of Conditional Tasks)
+   |
+   | [Scheduled by Task Scheduler]
+   v
+L4: Tasks (Unitary Operations Assigned to Specific Agents)
+   |
+   | [Instantiated as Actuator Invocations]
+   v
+L5: Actions (Logical Domain Operations: Web, File, API)
+   |
+   | [Translated to Specific Protocol Drivers]
+   v
+L6: Tool Calls (Syntactical Tool Payload Execution)
+   |
+   | [Executed in Secure Container]
+   v
+L7: Execution Steps (Raw Operating System I/O, IPC Messages)
+
+PART IV: Planning Manager
+
+4.1 Internal Scheduler and Queue Architecture
+
+The Planning Manager hosts a multi-priority FIFO/EDF scheduling queue. The
+internal thread pool dynamically scales planning operations based on systemic
+load metrics.
+
+                  +--------------------------------------------+
+                  |               PLANNING QUEUES              |
+                  +--------------------------------------------+
+                  |                                            |
+                  |  [ High Priority Queue ] ---> Priority >= 6|
+                  |  - Interrupt and emergency plans           |
+                  |                                            |
+                  |  [ Active Queue ] -----------> Priority 3-5|
+                  |  - Active user goals                       |
+                  |                                            |
+                  |  [ Background Queue ] -------> Priority 1-2|
+                  |  - Routine indexing and maintenance        |
+                  |                                            |
+                  +--------------------------------------------+
+
+4.2 Dynamic Throttling & Budgets
+
+Resource consumption is controlled using a multi-dimensional budget system to
+prevent infinite reasoning loops:
+
+\text{BudgetRemaining} = \text{BudgetLimit} - \sum (\text{Usage}_{Tokens} \cdot w_T + \text{Usage}_{Time} \cdot w_t + \text{Usage}_{Cost} \cdot w_c)
+
+If the calculated budget index falls below safety thresholds, the Planning
+Manager pauses execution, saves the active state, and prompts the user for
+authorization.
+
+PART V: Goal Compiler
+
+5.1 Goal State Machine
+
+stateDiagram-v2
+    [*] --> Uncompiled : User intent received
+    Uncompiled --> Normalizing : Run NLP cleanup
+    Normalizing --> Validating : Parse structural assertions
+    
+    Validating --> Validated : Check preconditions & safety rules
+    Validating --> Failed : Constraints violation / Contradiction
+    
+    Validated --> Active : Dispatch to Task Decomposer
+    Active --> Suspended : Preemption interrupt
+    Suspended --> Active : Focus recovery
+    
+    Active --> Merged : Combine similar goals
+    Active --> Split : Divide complex objectives
+    
+    Active --> Fulfilled : Goal verification complete
+    Active --> Aborted : Manual cancel / Safety breach
+    
+    Failed --> [*]
+    Fulfilled --> [*]
+    Aborted --> [*]
+
+5.2 Goal State Representation
+
+A Goal State is represented mathematically as a target vector \mathbf{g}^*
+within a multi-dimensional state space \mathcal{S}. The goal is achieved when
+the distance metric between the estimated current state \mathbf{s}_t and the
+target \mathbf{g}^* falls below threshold \epsilon:
+
+d(\mathbf{s}_t, \mathbf{g}^*) = \sqrt{(\mathbf{s}_t - \mathbf{g}^*)^T \mathbf{W} (\mathbf{s}_t - \mathbf{g}^*)} < \epsilon
+
+Where \mathbf{W} is a positive-definite diagonal matrix representing the
+priority weights assigned to different state variables.
+
+PART VI: Task Decomposition
+
+6.1 Recursive HTN Task Decomposition Loop
+
+flowchart TD
+    A[Task Decomposer Activated] --> B[Retrieve Compound Task Node]
+    B --> C[Fetch applicable expansion methods from Domain Schema]
+    C --> D{Verify Preconditions}
+    
+    D -->|Passed| E[Decompose into sub-tasks]
+    D -->|Failed| F[Try next expansion method]
+    
+    E --> G{Are sub-tasks primitive?}
+    G -->|Yes| H[Register tasks as executable Action Steps]
+    G -->|No| B
+    
+    F --> I{Any methods left?}
+    I -->|Yes| C
+    I -->|No| J[Trigger plan repair loop]
+
+6.2 HTN Expansion Algorithm
+
+procedure DecomposeTask(task, state, plan)
+    if is_primitive(task) then
+        if check_preconditions(task, state) then
+            append(plan, task)
+            state = apply_effects(task, state)
+            return true, state, plan
+        else
+            return false, state, plan
+        end
+    else
+        methods = get_applicable_methods(task, state)
+        for each method in methods do
+            subtasks = get_subtasks(method)
+            temp_state = copy(state)
+            temp_plan = copy(plan)
+            success = true
+            
+            for each subtask in subtasks do
+                success, temp_state, temp_plan = DecomposeTask(subtask, temp_state, temp_plan)
+                if not success then break end
+            end
+            
+            if success then
+                return true, temp_state, temp_plan
+            end
+        end
+        return false, state, plan
+    end
+end procedure
+
+PART VII: Planning Algorithms
+
+7.1 Algorithmic Selection Criteria
+
+| Scenario                         | Primary Algorithm    | Alternative Algorithm | Complexity        | Selection Trigger                                   |
+| :------------------------------- | :------------------- | :-------------------- | :---------------- | :-------------------------------------------------- |
+| **Highly Structured Workflows**  | HTN (Hierarchical)   | STRIPS / PDDL         | $O(B^D)$          | Standard system maintenance, template-matched tasks |
+| **Open-Ended Web Search**        | GOAP (Goal-Oriented) | A\* Search            | $O(V \log V + E)$ | Web navigation, e-commerce checkout loops           |
+| **Concurrent Tool Execution**    | POP (Partial-Order)  | Dependency Sorter     | NP-Hard           | Multi-agent pipelines, concurrent file indexing     |
+| **Complex Risk Evaluation**      | MCTS (Monte Carlo)   | Branch & Bound        | $O(N \cdot M)$    | Sandbox evaluations, high-budget runs               |
+| **Resource & Budget Throttling** | CSP Backtracking     | Dynamic Weights       | $O(B^D)$          | Safety checks, strict budget-capped tasks           |
+
+PART VIII: Plan Objects
+
+The following JSON schema defines the core verifiable data structure used to
+track planning runs and execution steps within CASPER.
+
+8.1 Planning Session Schema (planning_session.json)
+
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PlanningSession",
+  "type": "object",
+  "required": [
+    "session_id",
+    "goal_id",
+    "status",
+    "budget",
+    "plan_graph",
+    "telemetry"
+  ],
+  "properties": {
+    "session_id": { "type": "string", "format": "uuid" },
+    "goal_id": { "type": "string", "format": "uuid" },
+    "status": {
+      "type": "string",
+      "enum": ["PENDING", "COMPILING", "VALIDATING", "RUNNING", "SUSPENDED", "SUCCESSFUL", "FAILED"]
+    },
+    "budget": {
+      "type": "object",
+      "required": ["max_tokens", "max_cost_usd", "max_time_seconds"],
+      "properties": {
+        "max_tokens": { "type": "integer", "minimum": 0 },
+        "max_cost_usd": { "type": "number", "minimum": 0.0 },
+        "max_time_seconds": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "plan_graph": {
+      "type": "object",
+      "required": ["nodes", "edges"],
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["node_id", "type", "description", "preconditions", "effects"],
+            "properties": {
+              "node_id": { "type": "string", "format": "uuid" },
+              "type": { "type": "string", "enum": ["GOAL", "OBJECTIVE", "TASK", "ACTION"] },
+              "description": { "type": "string" },
+              "preconditions": { "type": "object" },
+              "effects": { "type": "object" }
+            }
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["source_id", "target_id", "relation_type"],
+            "properties": {
+              "source_id": { "type": "string", "format": "uuid" },
+              "target_id": { "type": "string", "format": "uuid" },
+              "relation_type": { "type": "string", "enum": ["PARENT_OF", "PREREQUISITE_FOR", "TEMPORAL_BEFORE"] }
+            }
+          }
+        }
+      }
+    },
+    "telemetry": {
+      "type": "object",
+      "required": ["span_id", "trace_id"],
+      "properties": {
+        "span_id": { "type": "string" },
+        "trace_id": { "type": "string" }
+      }
+    }
+  }
+}
+
+PART IX: Planning Graph
+
+                   +--------------------------------------------+
+                   |               PLANNING GRAPH               |
+                   +--------------------------------------------+
+                   |                                            |
+                   |  [ Goal Node: order_food ]                 |
+                   |          |                                 |
+                   |          v (PARENT_OF)                     |
+                   |  [ Task Node: select_restaurant ]          |
+                   |          |                                 |
+                   |          v (TEMPORAL_BEFORE)               |
+                   |  [ Task Node: checkout_cart ]              |
+                   |                                            |
+                   +--------------------------------------------+
+
+9.1 Graph Traversal and Loop Pruning
+
+The planning graph is compiled into a Directed Acyclic Graph (DAG) for
+processing. The dependency builder validates paths using Tarjan's Strongly
+Connected Components (SCC) algorithm to detect and prune cyclic dependencies
+before execution starts.
+
+PART X: Planning Indexing
+
+CASPER indexes task templates and historical plan runs using an embedded vector
+index (HNSW) alongside local relational databases to ensure fast, low-latency
+lookups:
+
+flowchart TD
+    A[New Task Request] --> B[Generate Task Semantic Embedding]
+    B --> C[Query HNSW Vector Index]
+    C --> D[Identify closest matching historical templates]
+    D --> E[Query local relational DB for performance logs]
+    E --> F[Select and compile target planning template]
+
+PART XI: Planning Pipeline
+
+This sequence diagram illustrates how CASPER compiles, validates, schedules, and
+dispatches a planning session:
+
+sequenceDiagram
+    autonumber
+    participant Core as Executive Kernel Core
+    participant Mgr as Planning Manager
+    participant Goal as Goal Compiler
+    participant Dec as Task Decomposer
+    participant Res as Resource Planner
+    participant Risk as Risk Planner
+    participant Dis as Planning Dispatcher
+
+    Core->>Mgr: Start Planning Session (User Intent)
+    activate Mgr
+    Mgr->>Goal: Normalise & Compile Intent
+    Goal-->>Mgr: Return Validated Goal Object
+    
+    Mgr->>Dec: Decompose Goal into HTN Tree
+    activate Dec
+    Dec->>Dec: Run recursive task expansions
+    Dec-->>Mgr: Return Decomposed Task Graph
+    deactivate Dec
+    
+    Mgr->>Res: Allocate budgets & check resource bounds
+    Res-->>Mgr: Return Resource Allocation Map
+    
+    Mgr->>Risk: Run causal risk checks & policy audits
+    activate Risk
+    Risk->>Risk: Check hard constraints & budget caps
+    Risk-->>Mgr: Return Policy Verdict (Approved)
+    deactivate Risk
+    
+    Mgr->>Dis: Dispatch Tasks to Active Queues
+    Dis-->>Mgr: Return Session Task Stream
+    Mgr-->>Core: Signal Ready State & Stream Run Progress
+    deactivate Mgr
+
+PART XII: Constraint Engine
+
+                            [CONSTRAINT SOLVER (CSP)]
+                                           |
+          +--------------------------------+--------------------------------+
+          |                                |                                |
+          v                                v                                v
+   [Hard Constraint Guards]     [Soft Constraint Weights]        [AC-3 Consistency Engine]
+    - Direct policy rules        - Evaluates path costs           - Explores valid domains
+    - Enforces system bounds     - Balances budget targets        - Prunes invalid states
+
+The Constraint Engine models tasks as Constraint Satisfaction Problems, ensuring
+plans align with hard boundaries (e.g., security policies, budget limits) before
+execution starts:
+
+\text{Minimize } \sum_{j \in T} \mathcal{C}(x_j) \quad \text{subject to} \quad \mathbf{A}x \leq \mathbf{b}, \quad x_i \in \mathcal{D}_i
+
+The solver uses the Arc Consistency 3 (AC-3) algorithm to prune invalid domains
+before running backtracking searches, minimizing processing latencies on complex
+plans.
+
+PART XIII: Temporal Planning
+
+The Temporal Planner schedules and coordinates execution steps using Allen's
+Interval Relations to map deadlines and dependencies:
+
++-------------------------------------------------------------------------+
+|                        ALLEN'S INTERVAL RELATIONS                       |
++-------------------------------------------------------------------------+
+|                                                                         |
+|  [ Before ]       | Task A |  --->  | Task B |                          |
+|  [ Meets ]        | Task A || Task B |                                  |
+|  [ Overlaps ]     | Task A |                                            |
+|                        | Task B |                                       |
+|  [ Starts ]       | A |                                                 |
+|                   | Task B |                                            |
+|  [ During ]         | A |                                               |
+|                   | Task B |                                            |
+|  [ Finishes ]         | A |                                             |
+|                   | Task B |                                            |
+|  [ Equals ]       | Task A |                                            |
+|                   | Task B |                                            |
+|                                                                         |
++-------------------------------------------------------------------------+
+
+PART XIV: Resource Planning
+
+The Resource Planner manages system allocations, balancing compute capacities,
+token allowances, and cost budgets across concurrency slots:
+
+flowchart TD
+    A[Task Step Dispatched] --> B[Evaluate Resource Demands]
+    B --> C{Verify Budget Limits}
+    
+    C -->|Within Limits| D[Allocate Resource Tokens]
+    C -->|Limit Exceeded| E[Halt Task & Notify User]
+    
+    D --> F[Run Sandboxed execution worker]
+    F --> G[Log resource, token, CPU & cost usage]
+    G --> H[Update budget metrics]
+    H --> B
+
+PART XV: Plan Optimization
+
+The Plan Optimizer identifies and implements structural efficiencies across
+compiled planning lattices:
+
+  - DAG Pruning: Automatically identifies and removes redundant nodes and dead
+    branches, reducing unnecessary tasks.
+  - Task Parallelization: Group independent tasks for concurrent run inside open
+    worker slots, minimizing overall latency.
+  - Token and Cost Reduction: Optimizes model query context lengths, using
+    semantic caching to save token costs.
+
+PART XVI: Plan Repair
+
+                               [PLAN REPAIR ENGINE]
+                                        |
+         +------------------------------+------------------------------+
+         |                              |                              |
+         v                              v                              v
+[Failure Monitor Daemon]       [Subtree Patching Loop]        [Dynamic Rollbacks Engine]
+ - Identifies step exceptions   - Replaces failed sub-plans    - Resets modified environments
+ - Pauses execution threads     - Maintains parent plan nodes  - Restores baseline variables
+
+When an execution step fails, the Plan Repair Engine patches the task graph
+locally, avoiding complete re-planning runs:
+
+flowchart TD
+    A[Step Execution Failure] --> B[Pause Plan Execution Thread]
+    B --> C[Isolate Failed Node in Task Tree]
+    C --> D[Retrieve local environmental variables]
+    
+    D --> E{Is local repair possible?}
+    E -->|Yes| F[Generate alternative HTN subtree]
+    F --> G[Patch Task Lattice & Resume Execution]
+    
+    E -->|No| H[Trigger full rollback & seek user input]
+
+PART XVII: Simulation Engine
+
+The Simulation Engine runs sandboxed, counterfactual dry-runs to predict plan
+outcomes and assess risks before physical execution starts:
+
+flowchart TD
+    A[Proposed Action Plan] --> B[Initialize counterfactual sandboxes]
+    B --> C[Run Monte Carlo rollouts]
+    C --> D[Evaluate execution risks & outcomes]
+    D --> E{Risk scores within safety bounds?}
+    
+    E -->|Yes| F[Approve Plan Execution]
+    E -->|No| G[Halt, Adjust Parameters, Re-simulate]
+
+PART XVIII: Memory Integration
+
+The Planning Engine continuously interfaces with Volume 4's multi-tier Memory
+Engine, using past lessons and preference data to guide plan synthesis:
+
+sequenceDiagram
+    autonumber
+    participant Plan as Planning Engine Core
+    participant Mem as Memory Routing Bus
+    participant Active as Working Memory Cache
+    participant STM as STM SQLite Store
+    participant LTM as LTM Vector & Graph DB
+
+    Plan->>Mem: Query Context & Preferences (Task: DSA Practice)
+    activate Mem
+    Mem->>Active: Retrieve current operational focus
+    Active-->>Mem: Return active variables
+    
+    Mem->>STM: Query recent study session logs
+    STM-->>Mem: Return recent task logs
+    
+    Mem->>LTM: Query long-term educational plans & templates
+    LTM-->>Mem: Return semantic templates
+    
+    Mem-->>Plan: Return Compiled Context Window
+    deactivate Mem
+
+PART XIX: Reasoning Integration
+
+The Planning Engine integrates with Volume 5's Reasoning Engine to validate
+constraints and update internal belief models:
+
+  - Active Belief Updates: Planning steps adjust transition probabilities,
+    triggering updates within the Bayesian belief mesh.
+  - Causal Risk Audits: The causal reasoning module tests proposed planning
+    paths using do-calculus to identify potential side-effects.
+  - Safety Rules Checking: Validates plan steps against active policy frameworks
+    and user-defined constraints before execution starts.
+
+PART XX: Execution Integration
+
+The Planning Engine dispatches and monitors actions using Volume 2's secure
+Execution Engine:
+
+flowchart TD
+    A[Approved Planning Lattices] --> B[Execution Planner Compiler]
+    B --> C[Allocate worker slot & bind execution port]
+    C --> D[Spawn isolated WebAssembly container worker]
+    
+    D --> E[Execute Action Step payload]
+    E --> F[Monitor process telemetry and heartbeats]
+    F --> G[Log execution state & return result metrics]
+
+PART XXI: Reflection Integration
+
+Every completed planning run is audited by the Reflection Engine to optimize
+future performance templates:
+
+  - Performance Reviews: Traces actual task run metrics (latencies, token costs,
+    resource consumption) against planning predictions.
+  - Heuristics Synthesizing: Formulates actionable rules from execution
+    anomalies or success patterns.
+  - Database Consolidation: Writes learned patterns and optimized templates back
+    to semantic long-term memory.
+
+PART XXII: Observability
+
+To maintain deep systemic visibility, the Planning Engine generates
+OpenTelemetry-compliant logs, spans, and metrics:
+
+  - Span Propagation: Trace identifiers follow planning runs from initial goal
+    extraction down to individual container worker tool runs, simplifying
+    debugging.
+  - Prometheus Metrics: Tracks CPU, memory usage, token throughput, planning
+    latencies, and cache hit ratios.
+  - Performance Alerts: Automatically logs queue warnings or solver timeout
+    events, triggering watchdog processes.
+
+PART XXIII: Configuration
+
+The operational parameters for the Planning Engine are defined in planning.yaml,
+outlining thread pools, queue sizes, budget limits, and algorithm parameters.
+
+23.1 Production YAML Configuration (planning.yaml)
+
+version: "2.0.0"
+environment: "production"
+
+planning_manager:
+  thread_pool_size: 16
+  watchdog_interval_ms: 1000
+  max_concurrent_sessions: 100
+  cancellation_grace_period_ms: 500
+
+queues:
+  high_priority_capacity: 50
+  active_capacity: 100
+  background_capacity: 500
+  aging_coefficient: 0.15
+  starvation_threshold_ms: 30000
+
+budgets:
+  max_token_limit: 150000
+  max_execution_time_seconds: 600
+  max_cost_limit_usd: 15.00
+  memory_limit_mb: 2048
+
+algorithms:
+  htn:
+    max_recursion_depth: 10
+    enable_local_repair: true
+  goap:
+    max_search_depth: 15
+    heuristic_weight: 1.5
+  csp:
+    solver_timeout_ms: 50
+    max_backtracking_iterations: 1500
+  simulation:
+    monte_carlo_rollouts: 10
+    timeout_ms: 250
+
+observability:
+  enable_tracing: true
+  export_interval_ms: 250
+  log_level: "info"
+
+PART XXIV: gRPC APIs
+
+The Planning Engine relies on gRPC over HTTP/2 to communicate across cognitive
+subsystems.
+
+24.1 gRPC Protobuf Specification (planning_service.proto)
+
+syntax = "proto3";
+
+package casper.planning.v2;
+
+service PlanningService {
+  rpc StartSession(PlanningRequest) returns (PlanningResponse);
+  rpc ValidatePlan(ValidationRequest) returns (ValidationResponse);
+  rpc RunSimulation(SimulationRequest) returns (SimulationResponse);
+  rpc RepairPlan(RepairRequest) returns (RepairResponse);
+}
+
+message PlanningRequest {
+  string session_id = 1;
+  string user_intent = 2;
+  double budget_cap_usd = 3;
+}
+
+message PlanningResponse {
+  string session_id = 1;
+  string status_state = 2; // COMPILING, RUNNING, SUCCESSFUL, FAILED
+  repeated string execution_nodes = 3;
+  double estimated_total_cost = 4;
+}
+
+message ValidationRequest {
+  string session_id = 1;
+  repeated string plan_steps = 2;
+}
+
+message ValidationResponse {
+  bool is_valid = 1;
+  repeated string validation_failures = 2;
+  string security_policy_applied = 3;
+}
+
+message SimulationRequest {
+  string session_id = 1;
+  string candidate_step = 2;
+}
+
+message SimulationResponse {
+  double calculated_success_probability = 1;
+  double calculated_risk_score = 2;
+  string predicted_outcome_state = 3;
+}
+
+message RepairRequest {
+  string session_id = 1;
+  string failed_step_id = 2;
+  string failure_exception = 3;
+}
+
+message RepairResponse {
+  bool repair_successful = 1;
+  repeated string modified_nodes = 2;
+}
+
+PART XXV: Performance Engineering
+
+The system enforces strict execution budgets and latency limits across all core
+planning layers:
+
+\mathcal{L}_{total} = \mathcal{L}_{intent\_parse} + \mathcal{L}_{decomposition} + \mathcal{L}_{constraints} + \mathcal{L}_{verification} + \mathcal{L}_{dispatch}
+
+Where:
+
+  - \mathcal{L}_{intent\_parse} represents natural language goal normalization
+    (\leq 50\text{ms}).
+  - \mathcal{L}_{decomposition} represents HTN expansion loops
+    (\leq 100\text{ms}).
+  - \mathcal{L}_{constraints} represents AC-3 and backtracking CSP solving
+    (\leq 20\text{ms}).
+  - \mathcal{L}_{verification} represents security and policy verification
+    audits (\leq 5\text{ms}).
+  - \mathcal{L}_{dispatch} is the port allocation and worker container dispatch
+    latency (\leq 10\text{ms}).
+
+PART XXVI: Failure Recovery
+
+                             [FAILURE RECOVERY CORE]
+                                        |
+         +------------------------------+------------------------------+
+         |                              |                              |
+         v                              v                              v
+[Kernel Panic Watchdog]        [Deadlock Evaluator]           [Corruption Auditing Engine]
+ - Identifies subsystem crashes - Scans active queues & locks  - Scans serialized TSB files
+ - Reboots isolated structures  - Prunes dependency loops      - Rebuilds context from logs
+
+The system Watchdog manages failures and system crashes, restoring previous
+stable states using automated recovery workflows:
+
+  - Subsystem Recovery: If a core planning subsystem crashes, the Watchdog
+    isolates the failed component, freezes running queues, reboots the module,
+    and restores state from the last saved checkpoint.
+  - Pruning Deadlocks: The scheduler scans running queues, running Tarjan's
+    cycle-detection loops to identify and break resource locks.
+  - Database Failures: If a database file becomes unreadable, the engine rejects
+    the corrupt file, reads the incremental backup log, and restores the system
+    context.
+
+PART XXVII: Security
+
+To protect host systems and user data, the Planning Engine enforces
+multi-layered security boundaries and sandboxing:
+
+flowchart TD
+    A[Task Step Compiled] --> B{Verify Privilege Levels}
+    
+    B -->|High Privilege: payments, file edits| C[Isolate Workspace & Pause Task]
+    B -->|Low Privilege: reading, web search| D[Dispatch Task to Sandbox]
+    
+    C --> E[Generate Biometric Confirmation Gate]
+    E -->|User Approved| D
+    E -->|User Denied| F[Cancel Task, Rollback, Log Security Alert]
+
+  - Process Sandboxing: Code compilation and command runs execute within
+    isolated containers, protecting the host operating system from potential
+    exploits or crashes.
+  - Inline Sanitization: Outbound payloads are scanned for sensitive personal
+    information, redacting private keys or identifiers before data egress.
+  - Audit Logs: All planning updates, rule checks, and confirmation logs are
+    committed to read-only databases, ensuring complete security audit trails.
+
+PART XXVIII: Testing
+
+The system is validated across development environments using automated testing
+pipelines:
+
+  - Chaos Testing: Randomly injects process timeouts, database corruption,
+    network drops, and worker crashes to test plan-repair and rollback
+    behaviors.
+  - Simulation Testing: Employs virtual environments to test agents on
+    multi-step workflows, verifying planning and tool coordination.
+  - Performance Regression Suites: Tracks execution latencies, resource
+    footprint, and token usage to prevent performance degradation over updates.
+
+PART XXIX: Future Evolution
+
+                          [PLANNING DEVELOPMENT ROADMAP]
+                                       |
+         +-----------------------------+-----------------------------+
+         |                             |                             |
+         v                             v                             v
+  [STAGE 1: Rule-Based Systems]         [STAGE 2: Adaptive Planning]  [STAGE 3: Decentralized Mesh]
+   Manual constraint solvers.           Self-improving templates.     Distributed multi-device runs.
+   Hardcoded policy-guard gates.        Auto-recalibration parameters.Sovereign economic execution.
+
+  - Adaptive Planning Templates: Next-generation planners will dynamically
+    optimize constraint parameters and search depth based on execution profiles
+    and user habits.
+  - Distributed Multi-Device Mesh: Enables planning pipelines to run across
+    decentralized mesh networks, offloading tasks to local or cloud nodes based
+    on resource availability.
+  - Autonomous Knowledge Evolution: Cognitive engines will autonomously
+    discover, optimize, and share execution templates across safe, verified
+    network channels.
+
+PART XXX: Appendices
+
+30.1 Domain Definition Grammar (EBNF Specification)
+
+domain_definition ::= "domain" identifier "{" { domain_element } "}"
+domain_element    ::= type_definition | constant_definition | action_definition | compound_task
+
+type_definition   ::= "type" identifier [ ":" identifier ] ";"
+constant_definition::= "const" identifier ":" identifier ";"
+
+action_definition ::= "action" identifier "(" [ parameter_list ] ")" "{" action_body "}"
+action_body       ::= [ precondition_block ] [ effect_block ]
+precondition_block::= "preconditions" ":" logical_expression ";"
+effect_block      ::= "effects" ":" logical_expression ";"
+
+compound_task     ::= "task" identifier "(" [ parameter_list ] ")" "{" task_body "}"
+task_body         ::= "methods" ":" { method_definition }
+method_definition ::= "method" identifier "{" method_body "}"
+method_body       ::= [ precondition_block ] "subtasks" ":" task_list ";"
+
+parameter_list    ::= parameter { "," parameter }
+parameter         ::= identifier ":" identifier
+task_list         ::= task_invocation { "," task_invocation }
+task_invocation   ::= identifier "(" [ argument_list ] ")"
+
+30.2 Planning Domain Definition Sample (CASPER Domain Language)
+
+domain developer_career_management {
+    type user_profile;
+    type resume_file : file;
+    type web_session : network_resource;
+
+    task acquire_backend_job(user: user_profile) {
+        methods:
+            method apply_via_job_boards {
+                preconditions:
+                    user.has_verified_resume == true;
+                subtasks:
+                    open_job_portal_session(user),
+                    scrape_matching_roles(user),
+                    dispatch_applications_loop(user);
+            }
+            
+            method build_resume_first {
+                preconditions:
+                    user.has_verified_resume == false;
+                subtasks:
+                    compile_resume_from_profile(user),
+                    acquire_backend_job(user);
+            }
+    }
+
+    action compile_resume_from_profile(user: user_profile) {
+        preconditions:
+            user.has_completed_projects == true;
+        effects:
+            user.has_verified_resume = true;
+    }
+}
+
+30.3 Glossary of Technical Terms
+
+  - Active Inference: A mathematical framework modeling cognition as the
+    minimization of variational free energy through state updates and
+    environmental actions.
+  - Arc Consistency (AC-3): An algorithm used to prune invalid domains in
+    Constraint Satisfaction Problems, optimizing backtracking search
+    performance.
+  - Causal Intervention: Direct manipulation of variable states within
+    structural causal models using do-calculus to predict results.
+  - Expected Free Energy (G): A variational metric used in active inference to
+    select optimal, goal-seeking policies over a temporal horizon.
+  - Hierarchical Task Network (HTN): A planning paradigm that decomposes
+    compound tasks recursively into chains of primitive operations.
+  - Task State Block (TSB): A structured, verifiable data packet tracking active
+    operational variables, variables, and progress metrics for a task.
+  - Variational Free Energy (\mathcal{F}): A mathematical bound measuring
+    internal model error, minimized through belief state updates.
